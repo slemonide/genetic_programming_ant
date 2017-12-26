@@ -1,38 +1,60 @@
-local chromosome = {}
+chromosome = {}
 chromosome.possible_actions = {"move", "turnLeft", "turnRight"}
 
 --[[
     Chromosome is:
     {
-      transitions = {{true = Natural, false = Natural}}, -- automata transitions, indexes are states,
-                                                            first state has index 1
-      actions = {String} -- actions on transitions
+      true = { -- this path is chosen if there is food in front of the ant
+        transitions = {Natural}, -- automata transitions, indexes are states,
+                                                              first state has index 1
+        actions = {String} -- actions on transitions
+        },
+      false = {
+        transitions = {Natural},
+        actions = {String}
+        }
     }
     interp. a chromosome representing an algorithm
 
     Examples:
 
-    c1 = {
-        transitions = {{true = 1, false = 1}},
+    c1 = {}
+    c1[true] = {
+        transitions = {1},
+        actions = {"move"}
+    }
+    c1[false] = {
+        transitions = {1},
         actions = {"move"}
     }
 
 
-    c2 = {
-        transitions = {{true = 2, false = 3}, {true = 3, false = 4}, {true = 4, false = 1}, {true = 1, false = 1}},
+    c2 = {}
+    c2[true] = {
+        transitions = {2, 3, 4, 1},
+        actions = {"move", "turnLeft", "move", "turnRight"}
+    }
+    c2[true] = {
+        transitions = {2, 3, 4, 1},
         actions = {"move", "turnLeft", "move", "turnRight"}
     }
 --]]
 
 function chromosome:validate(chromosome)
     assert(chromosome)
-    assert(chromosome.transitions)
-    assert(chromosome.actions)
+    assert(chromosome[true])
+    assert(chromosome[false])
+    assert(chromosome[true].transitions)
+    assert(chromosome[true].actions)
+    assert(chromosome[false].transitions)
+    assert(chromosome[false].actions)
 
-    assert(#chromosome.transitions == #chromosome.actions)
+    assert(#chromosome[true].transitions == #chromosome[true].actions)
+    assert(#chromosome[false].transitions == #chromosome[false].actions)
+    assert(#chromosome[true].transitions == #chromosome[false].actions)
 end
 
-local function generate_random_chromosome(size, previous_chromosomes)
+local function generate_random_chromosome(size)
     if not size then
         size = CONFIG.INITIAL_MAX_CHROMOSOME_SIZE
     end
@@ -40,15 +62,17 @@ local function generate_random_chromosome(size, previous_chromosomes)
 
     local cs = {}
 
-    cs.transitions = {}
-    cs.actions = {}
+    for _, key in ipairs({true, false}) do
+        cs[key] = {}
+        local slice = cs[key]
 
-    for i = 1, size do
-        table.insert(cs.actions, chromosome.possible_actions[math.random(#chromosome.possible_actions)])
+        slice.transitions = {}
+        slice.actions = {}
 
-        cs.transitions[i] = {}
-        cs.transitions[i][true] = math.random(size)
-        cs.transitions[i][false] = math.random(size)
+        for i = 1, size do
+            table.insert(slice.actions, chromosome.possible_actions[math.random(#chromosome.possible_actions)])
+            table.insert(slice.transitions, math.random(size))
+        end
     end
 
     chromosome:validate(cs)
@@ -59,17 +83,19 @@ end
 local function mix(s1, s2)
     local cs = {}
 
-    cs.transitions = {}
-    cs.actions = {}
+    for _, key in ipairs({true, false}) do
+        cs[key] = {}
+        local slice = cs[key]
 
-    for i = 1, math.min(#s1.actions, #s2.actions) do
-        -- Action is taken either from the dad or from the mom
-        table.insert(cs.actions, math.random() > 0.5 and s1.actions[i] or s2.actions[i])
+        slice.transitions = {}
+        slice.actions = {}
 
-        cs.transitions[i] = {}
-        -- Transition is taken either from the dad or from the mom
-        cs.transitions[i][true] = math.random() > 0.5 and s1.transitions[i][true] or s2.transitions[i][true]
-        cs.transitions[i][false] = math.random() > 0.5 and s1.transitions[i][false] or s2.transitions[i][false]
+        for i = 1, CONFIG.INITIAL_MAX_CHROMOSOME_SIZE do
+            table.insert(slice.actions, math.random() > 0.5 and
+                s1[key].actions[i] or s2[key].actions[i])
+            table.insert(slice.transitions, math.random() > 0.5 and
+                s1[key].transitions[i] or s2[key].transitions[i])
+        end
     end
 
     chromosome:validate(cs)
@@ -99,30 +125,35 @@ local function mixDeep(s1, s2)
 end
 
 local function mutateInitialState(s)
-    local oldInitialState = s.transitions[1]
-    local newStateIndex = math.random(#s.transitions)
+    local shift = math.random(CONFIG.INITIAL_MAX_CHROMOSOME_SIZE)
 
-    -- todo: think about this one
-    s.transitions[1] = s.transitions[newStateIndex]
-    s.transitions[newStateIndex] = oldInitialState
+    for _, key in ipairs({true, false}) do
+        local newStates = {}
+        for i = 1, CONFIG.INITIAL_MAX_CHROMOSOME_SIZE do
+            newStates[i] = s[key][(i + shift) % CONFIG.INITIAL_MAX_CHROMOSOME_SIZE + 1]
+        end
+    end
 end
 
 local function mutateActionOnTransition(s)
-    s.actions[math.random(#s.actions)] = chromosome.possible_actions[math.random(#chromosome.possible_actions)]
+    local input = math.random() > 0.5
+
+    s[input].actions[math.random(#s[input].actions)] = chromosome.possible_actions[math.random(#chromosome.possible_actions)]
 end
 
 local function mutateTransition(s)
-    -- todo: think about this one as well
-    s.transitions[math.random(#s.transitions)] = s.transitions[math.random(#s.transitions)]
+    local input = math.random() > 0.5
+    local newDirection = math.random() > 0.5
+
+    s[input].transitions[math.random(#s[input].transitions)] = s[newDirection].transitions[math.random(#s[newDirection].transitions)]
 end
 
 local function mutateTransitionCondition(s)
-    local transition = s.transitions[math.random(#s.transitions)]
+    local index = math.random(#s[true].transitions)
 
-    local t = transition[true]
-
-    transition[true] = transition[false]
-    transition[false] = t
+    local trans = s[true].transitions[index]
+    s[true].transitions[index] = s[false].transitions[index]
+    s[false].transitions[index] = trans
 end
 
 local function mutate(s)
@@ -146,23 +177,23 @@ local function generate(species)
 
         while (toAdd > 0) do
             local s1 = species[math.random(#species)]
-            local s2 = species[math.random(#species)]
+            local s2 = math.random() < CONFIG.OUTSIDER_BREED_CHANCE
+                and generate_random_chromosome()
+                or species[math.random(#species)]
             if (s1 ~= s2) then
                 if (math.random() < CONFIG.DEEP_BREED_CHANCE) then
-                    table.insert(children, mixDeep(s1, s2))
+                    --table.insert(children, mixDeep(s1, s2))
                 else
                     table.insert(children, mix(s1, s2))
                 end
                 toAdd = toAdd - 1
             end
         end
-
         for _, child in ipairs(children) do
             if (math.random() < CONFIG.MUTATION_CHANCE) then
                 mutate(child)
             end
         end
-
         for _, child in ipairs(children) do
             table.insert(species, child)
         end
@@ -175,6 +206,37 @@ local function generate(species)
 
         return population
     end
+end
+
+---------------------------------------
+-- export functions
+---------------------------------------
+
+-- Return a short alias for the given action
+local function nameAction(action)
+    if (action == "move") then
+        return "M"
+    elseif (action == "turnLeft") then
+        return "L"
+    elseif (action == "turnRight") then
+        return "R"
+    end
+end
+
+-- Export given chromosome to dot format
+function chromosome:getDot(s)
+    local str = "digraph G {\n"
+
+    for i = 1, #s[true].transitions do
+        str = str .. string.format('    %d -> %d [label = "T|%s"]\n', i, s[true].transitions[i],
+            nameAction(s[true].actions[i]))
+        str = str .. string.format('    %d -> %d [label = "F|%s"]\n', i, s[false].transitions[i],
+            nameAction(s[false].actions[i]))
+    end
+
+    str = str .. "}"
+
+    return str
 end
 
 

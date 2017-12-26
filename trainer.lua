@@ -68,8 +68,16 @@ function trainer:render()
         for i = 1, math.min(#trainer.fitness, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
             love.graphics.print(string.format("%d                 %.2f %s",
                 trainer.fitness[i].fitness,
-                trainer.fitness[i].fitness / CONFIG.MAX_FOOD * 100, "%"),
+                trainer.fitness[i].fitness / (CONFIG.MAX_FOOD + 1) * 100, "%"),
                 size * 2 + 30, 65 + i * 15)
+
+            -- debug
+            if (trainer.fitness[i].fitness == CONFIG.MAX_FOOD and not done_activated) then
+                print("Done!")
+                print("Generation: ", trainer.generation)
+
+                done_activated = true
+            end
         end
     end
 end
@@ -84,8 +92,8 @@ function trainer:update()
         local field = trainer.fields[i] -- the world in which chromosome acts
         local state = trainer.states[i]
 
-        field.ant[chromosome.actions[state]]()
-        trainer.states[i] = chromosome.transitions[state][field.ant:isLookingAtFood()]
+        field.ant[chromosome[field.ant:isLookingAtFood()].actions[state]]()
+        trainer.states[i] = chromosome[field.ant:isLookingAtFood()].transitions[state]
     end
 
     trainer.move = trainer.move + 1
@@ -98,7 +106,7 @@ function trainer:update()
             local world = trainer.fields[i]
 
             table.insert(trainer.fitness, {
-                fitness = world.ant.food_eaten,
+                fitness = world.ant.food_eaten + (200 - world.ant.numLastFoodEaten) / 200,
                 chromosome = i
             })
         end
@@ -113,9 +121,12 @@ function trainer:update()
 
         trainer.chromosomes = {}
 
+
         for i = 1, math.ceil(CONFIG.SURVIVAL_RATE * CONFIG.POPULATION) do
             table.insert(trainer.chromosomes, prev_chromosomes[trainer.fitness[i].chromosome])
         end
+
+        print(chromosome:getDot(trainer.chromosomes[1]))
 
         -- generate new chromosomes from the best ones
         chromosomeSpawner(trainer.chromosomes)

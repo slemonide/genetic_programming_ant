@@ -2,6 +2,8 @@ local function f()
     local ant = {}
 
     ant.food_eaten = 0
+    ant.numLastFoodEaten = 200 -- which turn the last food item was eaten
+    ant.turn = 0
 
     ant.direction = "east"
     -- directions in the clockwise order
@@ -37,6 +39,8 @@ local function f()
 
     -- Move and forward
     function ant:move()
+        ant.turn = ant.turn + 1
+
         ant.x = ant.x + ant.directions_position_changes[ant.direction].x
         ant.y = ant.y + ant.directions_position_changes[ant.direction].y
 
@@ -59,16 +63,22 @@ local function f()
         if ant.food:contains(ant.x, ant.y) then
             ant.food_eaten = ant.food_eaten + 1
             ant.food:remove(ant.x, ant.y)
+
+            ant.numLastFoodEaten = ant.turn
         end
     end
 
     -- Rotate and to the left
     function ant:turnLeft()
+        ant.turn = ant.turn + 1
+
         ant.direction = ant.directions[ant.direction][1]
     end
 
     -- Rotate ant to the right
     function ant:turnRight()
+        ant.turn = ant.turn + 1
+
         ant.direction = ant.directions[ant.direction][2]
     end
 
