@@ -1,8 +1,11 @@
+local xy_mapSpawner = require("xy_map")
+local antSpawner = require("ant")
+
 
 local function f()
     local field = {}
-    field.food = require("xy_map")()
-    field.ant = require("ant")()
+    field.food = xy_mapSpawner()
+    field.ant = antSpawner()
 
     function field:load()
         local file = assert(io.open("food.txt", "r"))
@@ -92,6 +95,13 @@ local function f()
                 field.ant:move()
             end
         end
+    end
+
+    function field:reset()
+        field.food = xy_mapSpawner()
+        field.ant = antSpawner()
+
+        field:load()
     end
 
     return field

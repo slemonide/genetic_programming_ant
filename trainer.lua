@@ -15,7 +15,7 @@ function trainer:load()
     end
 
     trainer.generations = {}
-    table.insert(trainer.generations, chromosomeSpawner(trainer.fields))
+    table.insert(trainer.generations, chromosomeSpawner())
 
     trainer.generation = 1
     trainer.move = 0
@@ -23,15 +23,9 @@ end
 
 function trainer:render()
     trainer.fields[1]:render(0,0)
-    trainer.fields[1]:render(1,0)
-    trainer.fields[1]:render(0,1)
-    trainer.fields[1]:render(1,1)
-    --[[
-    trainer.generations[trainer.generation][1].field:render(0,0)
-    trainer.generations[trainer.generation][2].field:render(1,0)
-    trainer.generations[trainer.generation][3].field:render(0,1)
-    trainer.generations[trainer.generation][4].field:render(1,1)
-    --]]
+    trainer.fields[2]:render(1,0)
+    trainer.fields[3]:render(0,1)
+    trainer.fields[4]:render(1,1)
 
     local size = CONFIG.FIELD_SIZE * (CONFIG.GRAPHICS.TILE_SIZE + 1)
 
@@ -51,8 +45,7 @@ function trainer:render()
         love.graphics.print("Best species so far:", size * 2 + 10, 40)
 
         for i = 1, math.min(#trainer.bestSpecies, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
-            love.graphics.print(
-                string.format("%f %s", trainer.bestSpecies[i].field.ant.food_eaten / CONFIG.MAX_FOOD, "%"),
+            love.graphics.print(trainer.bestSpecies[i].fitness,
                 size * 2 + 30, 55 + i * 15)
         end
     end
@@ -65,17 +58,21 @@ function trainer:update()
     local generation = trainer.generations[trainer.generation]
 
     for i = 1, #generation do
-        generation[i].chromosome.action()
-        generation[i].chromosome = generation[i].chromosome[trainer.fields[i].ant:isLookingAtFood()]
+        assert(generation[i].action)
+        trainer.fields[i].ant[generation[i].action]()
+        generation[i] = generation[i][trainer.fields[i].ant:isLookingAtFood()]
     end
 
     trainer.move = trainer.move + 1
 
     if (trainer.move > CONFIG.MAX_TURNS) then
-        --print("Next generation!")
-        -- compute best species
+        -- compute fitness function
+        for i = 1, #generation do
+            generation[i].fitness = trainer.fields[i].ant.food_eaten
+        end
+
         table.sort(trainer.generations[trainer.generation], function(a, b)
-            return a.field.ant.food_eaten > b.field.ant.food_eaten
+            return a.fitness > b.fitness
         end)
 
         for i = 1, CONFIG.SURVIVAL_RATE do
@@ -85,25 +82,20 @@ function trainer:update()
         trainer.generation = trainer.generation + 1
         trainer.move = 0
 
-        -- Clean up fields
-        trainer.fields = {}
-        for i =1, #trainer.generations[trainer.generation - 1] do
-            trainer.generations[trainer.generation - 1][i].fields = nil
+        trainer.generations[trainer.generation] = {}
+
+        for i = 1, #trainer.fields do
+            trainer.fields[i]:reset()
         end
 
-        for i = 1, CONFIG.POPULATION do
-            local field = fieldSpawner()
-            field:load()
-            table.insert(trainer.fields, field)
-        end
-
-        -- Move best species to new world
         for i = 1, #trainer.bestSpecies do
-            trainer.bestSpecies[i].field = trainer.fields[i]
+            trainer.generations[trainer.generation][i] = {}
+            trainer.generations[trainer.generation][i][true] = trainer.bestSpecies[i][true]
+            trainer.generations[trainer.generation][i][false] = trainer.bestSpecies[i][false]
+            trainer.generations[trainer.generation][i].action = trainer.bestSpecies[i].action
         end
 
-        trainer.generations[trainer.generation] = trainer.generations[trainer.generation - 1]
-        --table.insert(trainer.generations, chromosomeSpawner(trainer.fields, trainer.bestSpecies))
+        chromosomeSpawner(trainer.generations[trainer.generation])
     end
 end
 

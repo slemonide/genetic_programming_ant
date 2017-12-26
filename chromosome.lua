@@ -27,35 +27,56 @@ local function generate_random_chromosome(size, previous_chromosomes)
     return out
 end
 
-function load_actions(ant)
-    chromosome.possible_actions = {
-        function() ant:move() end,
-        function() ant:turnLeft() end,
-        function() ant:turnRight() end
-    }
+local function load_actions()
+    chromosome.possible_actions = {"move", "turnLeft", "turnRight"}
 end
 
-local function generate(fields, bestSpecies)
-    assert(CONFIG.POPULATION == #fields)
+-- mix two species into new specie
+local function mix(s1, s2, depth)
+    local out = {}
+    out.action = math.random() > 0.5 and s1.action or s2.action
+    out[true] = math.random() > 0.5 and s1[true] or s2[true]
+    out[false] = math.random() > 0.5 and s1[false] or s2[false]
 
-    if (bestSpecies) then
+    -- TODO: make recursive
+    return out
+end
+
+local function mutate()
+    -- TODO: finish
+end
+
+local function generate(species)
+
+    -- TODO: test everything, I don't trust this code anymore
+
+    if (species) then
         local children = {}
         local toAdd = CONFIG.POPULATION - CONFIG.SURVIVAL_RATE
         assert(toAdd >= 0)
 
-        -- TODO: finish
+        while (toAdd > 0) do
+            local s1 = species[math.random(#species)]
+            local s2 = species[math.random(#species)]
+            if (s1 ~= s2) then
+                table.insert(children, mix(s1, s2))
+                toAdd = toAdd - 1
+            end
+        end
 
-        return bestSpecies
+        for _, child in ipairs(children) do
+            table.insert(species, child)
+        end
+
+        for _, mutant in ipairs(species) do
+            mutate(mutant)
+        end
     else
         local population = {}
 
         for i = 1, CONFIG.POPULATION do
-            local field = fields[i]
-            load_actions(field.ant)
-            table.insert(population, {
-                chromosome = generate_random_chromosome(),
-                field = field
-            } )
+            load_actions()
+            table.insert(population, generate_random_chromosome())
         end
 
         return population
