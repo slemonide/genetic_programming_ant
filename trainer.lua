@@ -5,7 +5,7 @@ local trainer = {}
 
 trainer.fields = {}
 trainer.fitness = {} -- best results from the previous generation
-trainer.generations = {}
+trainer.chromosomes = {}
 trainer.states = {} -- states of automatas
 
 function trainer:resetFields()
@@ -33,7 +33,7 @@ function trainer:resetRound()
 end
 
 function trainer:load()
-    table.insert(trainer.generations, chromosomeSpawner())
+    trainer.chromosomes = chromosomeSpawner()
 
     trainer:resetRound()
 
@@ -63,10 +63,13 @@ function trainer:render()
 
     if (#trainer.fitness > 0) then
         love.graphics.print("Best results so far:", size * 2 + 10, 40)
+        love.graphics.print("Food eaten:        Adaptation:", size * 2 + 10, 65)
 
         for i = 1, math.min(#trainer.fitness, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
-            love.graphics.print(trainer.fitness[i],
-                size * 2 + 30, 55 + i * 15)
+            love.graphics.print(string.format("%d                 %.2f %s",
+                trainer.fitness[i].fitness,
+                trainer.fitness[i].fitness / CONFIG.MAX_FOOD * 100, "%"),
+                size * 2 + 30, 65 + i * 15)
         end
     end
 end
@@ -76,10 +79,8 @@ function trainer:keypressed(key)
 end
 
 function trainer:update()
-    local current_generation = trainer.generations[trainer.generation]
-
-    for i = 1, #current_generation do
-        local chromosome = current_generation[i]
+    for i = 1, #trainer.chromosomes do
+        local chromosome = trainer.chromosomes[i]
         local field = trainer.fields[i] -- the world in which chromosome acts
         local state = trainer.states[i]
 
@@ -92,32 +93,34 @@ function trainer:update()
     if (trainer.move > CONFIG.MAX_TURNS) then
         -- compute fitness function
         trainer.fitness = {}
-        for _, world in ipairs(trainer.fields) do
-            table.insert(trainer.fitness, world.ant.food_eaten)
+
+        for i = 1, #trainer.fields do
+            local world = trainer.fields[i]
+
+            table.insert(trainer.fitness, {
+                fitness = world.ant.food_eaten,
+                chromosome = i
+            })
         end
 
-        table.sort(trainer.fitness, function(a, b) return a > b end) -- greatest go first
-
-        --local bestSpecies = {}
-        --for i = 1, CONFIG.SURVIVAL_RATE do
-        --    table.insert(bestSpecies, current_generation[trainer.fitness[i]])
-        --end
-
-        --trainer.generation = trainer.generation + 1
-        trainer.move = 0
-
-        --trainer.generations[trainer.generation] = {}
+        table.sort(trainer.fitness, function(a, b) return a.fitness > b.fitness end) -- greatest go first
 
         trainer:resetRound()
+        trainer.generation = trainer.generation + 1
+        trainer.move = 0
 
-        --current_generation = trainer.generations[trainer.generation]
+        local prev_chromosomes = trainer.chromosomes
 
-        --for _, specie in ipairs(bestSpecies) do
-        --    table.insert(current_generation, bestSpecies)
-        --end
+        trainer.chromosomes = {}
+
+        for i = 1, math.ceil(CONFIG.SURVIVAL_RATE * CONFIG.POPULATION) do
+            table.insert(trainer.chromosomes, prev_chromosomes[trainer.fitness[i].chromosome])
+        end
 
         -- generate new chromosomes from the best ones
-        --chromosomeSpawner(trainer.generations[trainer.generation], bestSpecies)
+        chromosomeSpawner(trainer.chromosomes)
+
+        --print("SIZE: ", #trainer.chromosomes)
     end
 end
 
