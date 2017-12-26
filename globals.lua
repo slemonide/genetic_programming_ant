@@ -6,7 +6,7 @@ CONFIG = {
     POPULATION = 1000, -- Population of chromosomes each generation. Should be at least 4 (because of graphics)
     SURVIVAL_RATE = 100, -- How many species will continue to the next generation (only the best ones are chosen)
     INITIAL_MAX_CHROMOSOME_SIZE = 10,
-    MAX_TURNS = 200, -- 200
+    MAX_TURNS = 10, -- 200
     MAX_FOOD = 89,
 
     GRAPHICS = {

@@ -4,18 +4,38 @@ local chromosomeSpawner = require("chromosome")
 local trainer = {}
 
 trainer.fields = {}
-trainer.bestSpecies = {} -- best species from the previous generation
+trainer.fitness = {} -- best results from the previous generation
+trainer.generations = {}
+trainer.states = {} -- states of automatas
 
-function trainer:load()
+function trainer:resetFields()
+    trainer.fields = {}
 
     for i = 1, CONFIG.POPULATION do
         local field = fieldSpawner()
         field:load()
         table.insert(trainer.fields, field)
     end
+end
 
-    trainer.generations = {}
+function trainer:resetStates()
+    trainer.states = {}
+
+    for i = 1, CONFIG.POPULATION do
+        table.insert(trainer.states, 1) -- 1 is the starting state for all automatas
+    end
+end
+
+-- Reset the current generation round
+function trainer:resetRound()
+    trainer:resetFields()
+    trainer:resetStates()
+end
+
+function trainer:load()
     table.insert(trainer.generations, chromosomeSpawner())
+
+    trainer:resetRound()
 
     trainer.generation = 1
     trainer.move = 0
@@ -41,61 +61,63 @@ function trainer:render()
     love.graphics.print("Generation: " .. trainer.generation, size * 2 + 10, 10)
     love.graphics.print("Move: " .. trainer.move, size * 2 + 10, 25)
 
-    if (#trainer.bestSpecies > 0) then
-        love.graphics.print("Best species so far:", size * 2 + 10, 40)
+    if (#trainer.fitness > 0) then
+        love.graphics.print("Best results so far:", size * 2 + 10, 40)
 
-        for i = 1, math.min(#trainer.bestSpecies, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
-            love.graphics.print(trainer.bestSpecies[i].fitness,
+        for i = 1, math.min(#trainer.fitness, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
+            love.graphics.print(trainer.fitness[i],
                 size * 2 + 30, 55 + i * 15)
         end
     end
 end
 
 function trainer:keypressed(key)
+
 end
 
 function trainer:update()
-    local generation = trainer.generations[trainer.generation]
+    local current_generation = trainer.generations[trainer.generation]
 
-    for i = 1, #generation do
-        assert(generation[i].action)
-        trainer.fields[i].ant[generation[i].action]()
-        generation[i] = generation[i][trainer.fields[i].ant:isLookingAtFood()]
+    for i = 1, #current_generation do
+        local chromosome = current_generation[i]
+        local field = trainer.fields[i] -- the world in which chromosome acts
+        local state = trainer.states[i]
+
+        field.ant[chromosome.actions[state]]()
+        trainer.states[i] = chromosome.transitions[state][field.ant:isLookingAtFood()]
     end
 
     trainer.move = trainer.move + 1
 
     if (trainer.move > CONFIG.MAX_TURNS) then
         -- compute fitness function
-        for i = 1, #generation do
-            generation[i].fitness = trainer.fields[i].ant.food_eaten
+        trainer.fitness = {}
+        for _, world in ipairs(trainer.fields) do
+            table.insert(trainer.fitness, world.ant.food_eaten)
         end
 
-        table.sort(trainer.generations[trainer.generation], function(a, b)
-            return a.fitness > b.fitness
-        end)
+        table.sort(trainer.fitness, function(a, b) return a > b end) -- greatest go first
 
-        for i = 1, CONFIG.SURVIVAL_RATE do
-            trainer.bestSpecies[i] = trainer.generations[trainer.generation][i]
-        end
+        --local bestSpecies = {}
+        --for i = 1, CONFIG.SURVIVAL_RATE do
+        --    table.insert(bestSpecies, current_generation[trainer.fitness[i]])
+        --end
 
-        trainer.generation = trainer.generation + 1
+        --trainer.generation = trainer.generation + 1
         trainer.move = 0
 
-        trainer.generations[trainer.generation] = {}
+        --trainer.generations[trainer.generation] = {}
 
-        for i = 1, #trainer.fields do
-            trainer.fields[i]:reset()
-        end
+        trainer:resetRound()
 
-        for i = 1, #trainer.bestSpecies do
-            trainer.generations[trainer.generation][i] = {}
-            trainer.generations[trainer.generation][i][true] = trainer.bestSpecies[i][true]
-            trainer.generations[trainer.generation][i][false] = trainer.bestSpecies[i][false]
-            trainer.generations[trainer.generation][i].action = trainer.bestSpecies[i].action
-        end
+        --current_generation = trainer.generations[trainer.generation]
 
-        chromosomeSpawner(trainer.generations[trainer.generation])
+        --for _, specie in ipairs(bestSpecies) do
+        --    table.insert(current_generation, bestSpecies)
+        --end
+
+        -- generate new chromosomes from the best ones
+        --chromosomeSpawner(trainer.generations[trainer.generation], bestSpecies)
     end
 end
 

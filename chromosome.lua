@@ -1,56 +1,103 @@
 local chromosome = {}
+chromosome.possible_actions = {"move", "turnLeft", "turnRight"}
+
+--[[
+    Chromosome is:
+    {
+      states = {Natural}, -- automata states, first element is the starting state
+      transitions = {{true = Natural, false = Natural}}, -- automata transitions
+      actions = {String} -- actions on transitions
+    }
+    interp. a chromosome representing an algorithm
+
+    Examples:
+
+    c1 = {
+        states = {1},
+        transitions = {{true = 1, false = 1}},
+        actions = {"move"}
+    }
+
+
+    c2 = {
+        states = {1, 2, 3, 4},
+        transitions = {{true = 2, false = 3}, {true = 3, false = 4}, {true = 4, false = 1}, {true = 1, false = 1}},
+        actions = {"move", "turnLeft", "move", "turnRight"}
+    }
+--]]
+
+function chromosome:validate(chromosome)
+    assert(chromosome)
+    assert(chromosome.states)
+    assert(chromosome.transitions)
+    assert(chromosome.actions)
+
+    assert(#chromosome.states == #chromosome.transitions)
+    assert(#chromosome.transitions == #chromosome.actions)
+end
 
 local function generate_random_chromosome(size, previous_chromosomes)
-    local out = {}
-
     if not size then
         size = CONFIG.INITIAL_MAX_CHROMOSOME_SIZE
     end
-    if not previous_chromosomes then
-        previous_chromosomes = {}
+
+
+    local cs = {}
+
+    cs.states = {}
+    cs.transitions = {}
+    cs.actions = {}
+
+    for i = 1, size do
+        table.insert(cs.states, i)
+        table.insert(cs.actions, chromosome.possible_actions[math.random(#chromosome.possible_actions)])
+
+        cs.transitions[i] = {}
+        cs.transitions[i][true] = math.random(size)
+        cs.transitions[i][false] = math.random(size)
     end
-    table.insert(previous_chromosomes, out)
 
-    -- food
-    out[true] = (size > 0 and math.random() > 0.2) and generate_random_chromosome(size - 1, previous_chromosomes)
-        or previous_chromosomes[math.random(#previous_chromosomes)]
-
-    -- no food
-    out[false] = (size > 0 and math.random() > 0.2) and generate_random_chromosome(size - 1, previous_chromosomes)
-        or previous_chromosomes[math.random(#previous_chromosomes)]
-
-    assert(out[true])
-    assert(out[false])
-
-    out.action = chromosome.possible_actions[math.random(#chromosome.possible_actions)]
-
-    return out
-end
-
-local function load_actions()
-    chromosome.possible_actions = {"move", "turnLeft", "turnRight"}
+    chromosome:validate(cs)
+    return cs
 end
 
 -- mix two species into new specie
-local function mix(s1, s2, depth)
-    local out = {}
-    out.action = math.random() > 0.5 and s1.action or s2.action
-    out[true] = math.random() > 0.5 and s1[true] or s2[true]
-    out[false] = math.random() > 0.5 and s1[false] or s2[false]
-
-    -- TODO: make recursive
-    return out
+local function mix(s1, s2, visited, depth)
+    --local out = {}
+    --
+    --out.action = math.random() > 0.5 and s1.action or s2.action
+    --
+    --if (not visited) then
+    --    visited = {}
+    --elseif (visited[s1] or visited[s2]) then
+    --    out[true] = visited[math.random(#visited)]
+    --    out[false] = visited[math.random(#visited)]
+    --end
+    --if (not depth) then
+    --    depth = 2
+    --elseif depth == 0 then
+    --    out[true] = visited[math.random(#visited)]
+    --    out[false] = visited[math.random(#visited)]
+    --end
+    --
+    --
+    --visited[s1] = true
+    --visited[s2] = true
+    --
+    --out[true] = mix(s1[true], s2[true], visited, depth)
+    --out[false] = mix(s1[false], s2[false], visited, depth)
+    --
+    ---- TODO: make recursive
+    --return out
 end
 
 local function mutate()
     -- TODO: finish
 end
 
-local function generate(species)
-
-    -- TODO: test everything, I don't trust this code anymore
-
-    if (species) then
+local function generate(next_generation, species)
+    if (next_generation and species) then
+        --[[
         local children = {}
         local toAdd = CONFIG.POPULATION - CONFIG.SURVIVAL_RATE
         assert(toAdd >= 0)
@@ -71,11 +118,11 @@ local function generate(species)
         for _, mutant in ipairs(species) do
             mutate(mutant)
         end
+        --]]
     else
         local population = {}
 
         for i = 1, CONFIG.POPULATION do
-            load_actions()
             table.insert(population, generate_random_chromosome())
         end
 
