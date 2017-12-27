@@ -63,12 +63,13 @@ function trainer:render()
 
     if (#trainer.fitness > 0) then
         love.graphics.print("Best results so far:", size * 2 + 10, 40)
-        love.graphics.print("Food eaten:        Adaptation:", size * 2 + 10, 65)
+        love.graphics.print("Food eaten       Adaptation                  Genome", size * 2 + 10, 65)
 
         for i = 1, math.min(#trainer.fitness, CONFIG.GRAPHICS.MAX_BEST_SPECIES) do
-            love.graphics.print(string.format("%d                 %.2f %s",
+            love.graphics.print(string.format("%d                 %.2f %s            %s",
                 trainer.fitness[i].fitness,
-                trainer.fitness[i].fitness / (CONFIG.MAX_FOOD + 1) * 100, "%"),
+                trainer.fitness[i].fitness / (CONFIG.MAX_FOOD + 1) * 100, "%",
+                chromosome:getGene(trainer.chromosomes[i])),
                 size * 2 + 30, 65 + i * 15)
 
             -- debug
@@ -83,7 +84,11 @@ function trainer:render()
 end
 
 function trainer:keypressed(key)
-
+    if (key == "left") then
+        CONFIG.MAX_TURNS = 250
+    elseif (key == "right") then
+        CONFIG.MAX_TURNS = 200
+    end
 end
 
 function trainer:update()
@@ -126,7 +131,16 @@ function trainer:update()
             table.insert(trainer.chromosomes, prev_chromosomes[trainer.fitness[i].chromosome])
         end
 
+        print(os.date())
+        print("Fitness:", trainer.fitness[1].fitness)
+        print("Dot format:")
         print(chromosome:getDot(trainer.chromosomes[1]))
+        print("Gene:")
+        print(chromosome:getGene(trainer.chromosomes[1]))
+
+        local pos = chromosome:get2dVector(trainer.chromosomes[1])
+        print("Position:", pos[1], pos[2])
+        print()
 
         -- generate new chromosomes from the best ones
         chromosomeSpawner(trainer.chromosomes)

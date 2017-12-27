@@ -102,28 +102,6 @@ local function mix(s1, s2)
     return cs
 end
 
--- mix two species into new specie, deep version
-local function mixDeep(s1, s2)
-    local cs = {}
-
-    cs.transitions = {}
-    cs.actions = {}
-
-    local size = math.min(#s1.actions, #s2.actions)
-    for i = 1, size do
-        -- Action is taken either from the dad or from the mom
-        table.insert(cs.actions, math.random() > 0.5 and s1.actions[i] or s2.actions[i])
-
-        cs.transitions[i] = {}
-        -- Transition is taken either from the dad or from the mom
-        cs.transitions[i][true] = math.random() > 0.5 and s1.transitions[math.random(size)][true] or s2.transitions[math.random(size)][true]
-        cs.transitions[i][false] = math.random() > 0.5 and s1.transitions[math.random(size)][false] or s2.transitions[math.random(size)][false]
-    end
-
-    chromosome:validate(cs)
-    return cs
-end
-
 local function mutateInitialState(s)
     local shift = math.random(CONFIG.INITIAL_MAX_CHROMOSOME_SIZE)
 
@@ -181,19 +159,17 @@ local function generate(species)
                 and generate_random_chromosome()
                 or species[math.random(#species)]
             if (s1 ~= s2) then
-                if (math.random() < CONFIG.DEEP_BREED_CHANCE) then
-                    --table.insert(children, mixDeep(s1, s2))
-                else
-                    table.insert(children, mix(s1, s2))
-                end
+                table.insert(children, mix(s1, s2))
                 toAdd = toAdd - 1
             end
         end
-        for _, child in ipairs(children) do
+
+        for _, s in ipairs(children) do
             if (math.random() < CONFIG.MUTATION_CHANCE) then
-                mutate(child)
+                mutate(s)
             end
         end
+
         for _, child in ipairs(children) do
             table.insert(species, child)
         end
@@ -223,20 +199,79 @@ local function nameAction(action)
     end
 end
 
+-- Convert an action to number
+local function actionToNumber(action)
+    if (action == "move") then
+        return 100
+    elseif (action == "turnLeft") then
+        return 0
+    elseif (action == "turnRight") then
+        return 1000
+    end
+end
+
 -- Export given chromosome to dot format
 function chromosome:getDot(s)
     local str = "digraph G {\n"
 
     for i = 1, #s[true].transitions do
-        str = str .. string.format('    %d -> %d [label = "T|%s"]\n', i, s[true].transitions[i],
+        str = str .. string.format('    %d -> %d [label = "T/%s"]\n', i, s[true].transitions[i],
             nameAction(s[true].actions[i]))
-        str = str .. string.format('    %d -> %d [label = "F|%s"]\n', i, s[false].transitions[i],
+        str = str .. string.format('    %d -> %d [label = "F/%s"]\n', i, s[false].transitions[i],
             nameAction(s[false].actions[i]))
     end
 
     str = str .. "}"
 
     return str
+end
+
+-- Export given chromosome to gene string format
+function chromosome:getGene(s)
+    local str = ""
+    for i = 1, #s[true].transitions do
+        str = str .. s[true].transitions[i] .. nameAction(s[true].actions[i])
+        str = str .. s[false].transitions[i] .. nameAction(s[false].actions[i]) .. " "
+    end
+
+    return str
+end
+
+-- Export given chromosome to a 2d vector
+function chromosome:get2dVector(s)
+    local big_vector = {}
+
+    for i = 1, #s[true].transitions do
+        table.insert(big_vector, s[true].transitions[i])
+        table.insert(big_vector, actionToNumber(s[true].actions[i]))
+        table.insert(big_vector, s[false].transitions[i])
+        table.insert(big_vector, actionToNumber(s[false].actions[i]))
+    end
+
+    if not (chromosome.vector_weights) then
+        chromosome.vector_weights = {}
+        for key = 1, 2 do
+            chromosome.vector_weights[key] = {}
+            for i = 1, #big_vector do
+                table.insert(chromosome.vector_weights[key], math.random())
+            end
+        end
+    end
+
+    local small_vector = {}
+
+    for key = 1, 2 do
+        for i = 1, #big_vector do
+            small_vector[key] = small_vector[key] or 0 + big_vector[i] * chromosome.vector_weights[key][i]
+        end
+    end
+
+    -- normalize it
+    local mag = small_vector[1] + small_vector[2]
+    small_vector[1] = small_vector[1] / mag
+    small_vector[2] = small_vector[2] / mag
+
+    return small_vector
 end
 
 

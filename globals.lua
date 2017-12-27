@@ -5,11 +5,10 @@ CONFIG = {
     TICK_RATE = 0,
     POPULATION = 10000, -- Population of chromosomes each generation. Should be at least 4 (because of graphics)
     SURVIVAL_RATE = 0.1, -- How many (in percent) species will continue to the next generation (only the best ones are chosen)
-    DEEP_BREED_CHANCE = 0, -- 0.4
-    MUTATION_CHANCE = 0.5,
+    MUTATION_CHANCE = 0.01,
     INITIAL_MAX_CHROMOSOME_SIZE = 7,
-    OUTSIDER_BREED_CHANCE = 0, -- 0.1
-    MAX_TURNS = 200, -- 200
+    OUTSIDER_BREED_CHANCE = 0.01,
+    MAX_TURNS = 200,
     MAX_FOOD = 89,
 
     GRAPHICS = {
