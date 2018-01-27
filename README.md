@@ -4,8 +4,7 @@ Genetic programming algorithm for automating ant motion
 ![Screenshot](screenshot.png)
 
 # How to run it
-Get love2d game engine from http://love2d.org/
-Run this with it.
+Get love2d game engine from http://love2d.org and run this with it.
 
 # How it works
 
